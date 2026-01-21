@@ -1,24 +1,20 @@
-# Use a Binder-compatible base image
-FROM jupyter/base-notebook:latest
+FROM jupyter/base-notebook:python-3.10
 
-# Switch to root for installations (allowed during build)
 USER root
 
-# Update and install system dependencies (including Tor)
+# Install Google Chrome, Tor, and dependencies
 RUN apt-get update && apt-get install -y \
     wget \
     gnupg \
-    software-properties-common \
     tor \
-    chromium-browser \
-    && rm -rf /var/lib/apt/lists/*
+    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
+    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
+    && apt-get update && apt-get install -y google-chrome-stable \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
-# Create a symlink for consistency (Selenium expects /usr/bin/google-chrome)
-RUN ln -s /usr/bin/chromium-browser /usr/bin/google-chrome
+# Fix permissions for the notebook user
+USER ${NB_USER}
 
-# Switch back to the default notebook user
-USER jovyan
-
-# Install Python packages
+# Install Python requirements
 COPY requirements.txt /tmp/
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
